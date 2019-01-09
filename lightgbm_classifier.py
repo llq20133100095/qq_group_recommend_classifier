@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import lightgbm as lgb
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
 import time
 
 def load_emb_dict(word_emb):
@@ -47,7 +47,7 @@ def get_data_array(file_name, is_training, data_emb, word_emb):
         data_y = np.array(data[u'remove'])
     for index, each_row in data.iterrows():
         each_row_word_emb = 0.0
-        word_num = 0
+        word_num = 0.0
         #if the POS no has the null value
         if(not pd.isnull(each_row[u'词性'])):
             parse_list = each_row[u'词性'].split(" ")
@@ -68,6 +68,8 @@ def get_data_array(file_name, is_training, data_emb, word_emb):
         return data_y, np.array(data_emb)
     else:
         return np.array(data_emb)
+
+
 
 if __name__ == '__main__':
     file_word2vec_save = './word_embeddings/train_test_word2vec.txt'
@@ -93,4 +95,56 @@ if __name__ == '__main__':
     test_data_x = get_data_array(file_test, True, test_data_emb, word_emb)
     print("Finish the data construction: %f s" % (time.time()-start_time))
     
+    #Cross validation
+    print("Start the gbm model......")
+    start_time = time.time()
+    N = 5
+    skf = StratifiedKFold(n_splits=N, random_state=42, shuffle=True)
+    params = {
+        "boosting_type": "gbdt",
+        "num_leaves": 1000,
+        "max_depth": 10,
+        "learning_rate": 0.05,
+        "n_estimators": 1000,
+        "max_bin": 425,
+        "subsample_for_bin": 20000,
+        "objective": 'binary',
+        "min_split_gain": 0,
+        "min_child_weight": 0.001,
+        "min_child_samples": 20,
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "colsample_bytree": 1,
+        "reg_alpha": 3,
+        "reg_lambda": 5,
+        "seed": 2018,
+        "n_jobs": 5,
+        "verbose": 1,
+        "silent": False
+    }
     
+    #train gbm model
+    for k, (train_in, val_in) in enumerate(skf.split(train_data_x, train_data_y)):
+        print('train %d flod:' % (k))
+        if(k == 1):
+            train_X, val_X, train_Y, val_Y = train_data_x[train_in], train_data_x[val_in], train_data_y[train_in], train_data_y[val_in]
+            
+            #start the gbm model
+            lgb_train = lgb.Dataset(train_X, train_Y)
+            lgb_val = lgb.Dataset(val_X, val_Y, reference=lgb_train)
+            
+            gbm = lgb.train(params, lgb_train, num_boost_round=1000,\
+                valid_sets=lgb_val, early_stopping_rounds=100, verbose_eval=50)
+            
+            val_pre = gbm.predict(val_X, num_iteration=gbm.best_iteration)
+            val_pre = np.where(val_pre > 0.4, 1,0)
+            precision = precision_score(val_Y, val_pre)
+            recall = recall_score(val_Y, val_pre)
+            f1_sco = f1_score(val_Y, val_pre)
+            con_mat = confusion_matrix(val_Y, val_pre)
+            print("f1_score: %f " % (f1_sco))
+            print("precision: %f " % (precision))
+            print("recall: %f " % (recall))
+            print(con_mat)
+            print("Finish the %d gbm model: %f s" % (k, time.time()-start_time))
+
