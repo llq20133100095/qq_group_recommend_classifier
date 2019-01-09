@@ -5,7 +5,7 @@
 
     2.test_data.csv：测试数据20462
 
-##输出数据
+## 输出数据
     1."./predicte_data/test_pre.csv":预测结果
 	
     2."./predicte_data/test_pre_label0.csv":预测结果，只保存后面label为0的结果，然后predicate从大到小排序
