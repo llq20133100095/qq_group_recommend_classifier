@@ -1,5 +1,8 @@
 # qq_group_recommend_classifier
 -------------------------------------
+## 词向量
+    1."./word_embeddings/train_test_word2vec.txt"：获得train_data和test_data每个词的词向量，并存到这里
+-------------------------------------
 ## 测试数据
     1.train_data.csv：训练数据4000
 
