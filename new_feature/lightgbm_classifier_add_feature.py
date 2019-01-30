@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jan  8 12:15:07 2019
+Created on Thu Jan 24 19:34:43 2019
 
 @author: leolqli
 @Function:
     feature: 
         1.word embeddings
         2.pos embeddings
-@Return:
+        3.other feature: such as entropy
 """
 import pandas as pd
 import numpy as np
@@ -56,6 +56,8 @@ def get_data_array(file_name, is_training, data_emb, word_emb, word_pos):
         1.data_y
         2.np.array(data_emb)
     """
+    columns = ['newtag2cout', 'newtitleexttag2count', 'newdescexttag2count', 'classifer', 'entropy', 'entropyv2']
+    
     data = pd.read_csv(file_name, encoding='utf-8')
     if(is_training):
         data_y = np.array(data[u'remove'])
@@ -77,6 +79,7 @@ def get_data_array(file_name, is_training, data_emb, word_emb, word_pos):
             word_num += 1
             each_row_word_emb = np.concatenate((word_emb['UNK'], word_pos['UNK']), axis=0)
         each_row_word_emb /= word_num
+        each_row_word_emb = np.concatenate((each_row_word_emb, np.array(each_row[columns])), axis=0)
         data_emb.append(each_row_word_emb)
     
     if(is_training):
@@ -85,7 +88,10 @@ def get_data_array(file_name, is_training, data_emb, word_emb, word_pos):
         return np.array(data_emb)
 
 def print_results(label, predict, description='train data'):
-    
+    """
+    Function:
+        print the results of precision, recall, f1_sco
+    """
     precision = precision_score(label, predict)
     recall = recall_score(label, predict)
     f1_sco = f1_score(label, predict)
@@ -96,11 +102,27 @@ def print_results(label, predict, description='train data'):
 
     return precision, recall, f1_sco
 
+def sample_test_data(file_name):
+    """
+    Function:
+        1.sample the 100 test in test_data
+    """
+    test_dataframe = pd.read_csv(file_name, encoding="utf-8")
+    sample_dataframe = []
+    for i in range(100):
+        randint = np.random.randint(0, high=len(test_dataframe[u'tag']))
+        sample_dataframe.append(test_dataframe.ix[randint])
+        
+    sample_dataframe = pd.DataFrame(sample_dataframe, columns=test_dataframe.columns)
+    sample_dataframe.to_csv('./predicte_data/test_pre_sample100.csv', encoding='utf-8-sig', index=None)
+
+    return sample_dataframe
+
 if __name__ == '__main__':
-    file_word2vec_save = './word_embeddings/train_test_word2vec.txt'
-    file_train = './data/train_data.csv'
-    file_test = './data/test_data.csv'
-    file_pos = './data/POS.txt'
+    file_word2vec_save = '../word_embeddings/train_test_word2vec.txt'
+    file_train = './data_process_simple/train_data.csv'
+    file_test = './data_process_simple/test_data2.csv'
+    file_pos = '../data/POS.txt'
     word_emb = {}
     word_pos = {}
     start_time = time.time()
@@ -122,7 +144,7 @@ if __name__ == '__main__':
     train_data_y, train_data_x = get_data_array(file_train, True, train_data_emb, word_emb, word_pos)
     test_data_x = get_data_array(file_test, False, test_data_emb, word_emb, word_pos)
     print("Finish the data construction: %f s" % (time.time()-start_time))
-    
+
     #Cross validation
     print("Start the gbm model......")
     start_time = time.time()
@@ -145,7 +167,7 @@ if __name__ == '__main__':
         "colsample_bytree": 1,
         "reg_alpha": 3,
         "reg_lambda": 5,
-        "seed": 2018,
+        "seed": 2019,
         "n_jobs": 5,
         "verbose": 1,
         "silent": False
@@ -187,6 +209,11 @@ if __name__ == '__main__':
         #test predicte in each fold
         test_pre = gbm.predict(test_data_x, num_iteration=gbm.best_iteration)
         test_pre_list.append(test_pre)
+        
+    columns = []
+    for i in range(356):
+        columns.append(str(i))
+    fea_import = pd.DataFrame({'column': columns, 'importance': gbm.feature_importance()}).sort_values(by='importance')
 
     print("-------------Finally-------------")
     print("f1_score: %f " % (np.mean(f1_sco_list)))
@@ -194,7 +221,11 @@ if __name__ == '__main__':
     print("recall: %f " % (np.mean(recall_list)))
     
     #test predicte
+    file_pre = './predicte_data/test_pre.csv'
     test_pre_fin = np.mean(test_pre_list, axis=0)
     test_data = pd.read_csv(file_test)
-    test_data['predicte'] = pd.DataFrame(test_pre_fin)
-    test_data.to_csv('./predicte_data/test_pre.csv', encoding='utf-8-sig', index=None)
+    test_data['predicte'] = pd.DataFrame(test_pre_fin)    
+    test_data['pre_label'] = pd.DataFrame(np.where(test_pre_fin > 0.5, 1, 0))
+    test_data.to_csv(file_pre, encoding='utf-8-sig', index=None)
+    
+    sample_dataframe = sample_test_data(file_pre)
