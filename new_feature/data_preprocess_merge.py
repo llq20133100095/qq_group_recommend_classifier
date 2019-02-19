@@ -50,8 +50,8 @@ def diff_predicte(item):
     
 if __name__ == '__main__':
     """label merge: svm and lgbm"""
-    file_svm = './data_process_test/svm_val_pre.csv'
-    file_lgbm = './data_process_test/lgbm_val_pre.csv'
+    file_svm = './data_process_test/lgbm_val_pre_5.csv'
+    file_lgbm = './data_process_test/lgbm_val_pre_6.csv'
     
     data_svm = pd.read_csv(file_svm, encoding="utf-8")
     data_lgbm = pd.read_csv(file_lgbm, encoding="utf-8")
@@ -79,4 +79,4 @@ if __name__ == '__main__':
     con_mat = confusion_matrix(label, predict)
     print(con_mat)
     
-    data_svm.to_csv('./data_process_test/merge_pre.csv', encoding='utf-8-sig', index=None)
+    data_svm.to_csv('./data_process_test/lgbm_merge_pre.csv', encoding='utf-8-sig', index=None)

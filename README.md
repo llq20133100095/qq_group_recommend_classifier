@@ -95,15 +95,117 @@ tags.50.filt.removeall.v4.alltaginfo.txt |	19758
     （2）利用lightgbm构建分类器
     
     （3）测试随机抽样的100样本（int test_data）
+	
+    （4）得到输出的两个文件“data_process_test/tag.both+top6k.final.review.raw.del_sig_ns_key.test_pre.csv”和“data_process_test/tags.50.filt.removeall.v6.del_sig_key.test_pre.csv”
     
 4.svm_classifier.py
 
     (1)load_pos_dict_one_hot:利用one-hot实现词性标注、
     
     (2)get_data_array:随机组合“词性”、“word embeddings”、“6维特征”
-     
+   
+5.lightgbm_classifier_add_feature_merge.py
+
+    (1)融合两个组合，同时进行预测
+    (2)这些组合有5和6，3和6
 ## 四、输出文件
 1.'predicte_data/test_pre_sample100.csv':随机抽样100样本
 
 2.'predicte_data/test_pre.csv':预测的test_data
     
+
+# qq群标签分类器分析:lightgbm_classifier_add_feature_analyse.py
+## 一、不同维度分析
+1.各个特征对测试集的影响
+
+2.根据最后结果进行排序，给出前面的一些分析
+
+3.观察train data的数据
+
+## 二、各个特征对测试集的影响
+1.抽样400个，并人工打上标记。生成文件名为：tags.50.filt.removeall.v6.del_sig_key.sample400.csv
+
+2.观察6个维度的特征对test data 的影响：针对的是label 1的预测
+
+特征 | 阈值 | precision | recall | f1_score 
+---|---|---|---|---
+All feature	| 0.7|	0.460751|	0.870968|	0.602679
+- no newtag2cout	| 0.7|	0.552000|	0.445161|	0.492857
+- no newtitleexttag2count|	0.7|	0.464164|	0.877419|	0.607143
+- no newdescexttag2count|	0.7|	0.438202|	0.754839|	0.554502
+- no classifer|	0.7|	0.422053|	0.716129|	0.531100|
+- no entropy|	0.7|	0.473310|	0.858065|	0.610092|
+- no entropyv2|	0.7|	0.455479|	0.858065|	0.595078|
+
+3.组合不同的特征进行测试
+特征 | 阈值 | precision | recall | f1_score 
+---|---|---|---|---
+newtag2cout + entropy|	0.7|	0.373272|	0.522581|	0.435484
+newtag2cout + classifer|	0.7|	0.414097|	0.606452|	0.492147
+
+通过观察6个特征的重要性，得到每个特征的重要程度：
+特征|	重要程度
+---|---
+newtag2cout|	8362
+newtitleexttag2count|	7067
+newdescexttag2count|	7325
+classifer|	7446
+entropy|	6916
+entropyv2|	6418
+
+## 三、数据
+1.存在文件夹“analyse_data”
+
+## 四、确定排序的阈值在哪个范围比较可信
+1.每个阈值区间中抽样100
+
+阈值|	文件名|	准确率
+---|---|---
+大于0.9|	tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0.9.csv|	95%
+0.85-0.9|	tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0.85_0.9.csv|	79%
+0.8-0.85|	tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0.8_0.85.csv|	74%
+
+## 五、观察train data的数据
+
+1.本身positive和negative数据存在近似的字样：
+
+（1）单身、
+
+（2）女汉纸、美女
+
+（3）兼职
+
+2.特征缺失值比较多
+
+（1）train_data数量为7288，缺失值的数量
+
+特征|	非空的数量
+---|---
+newtag2cout |	6628
+newtitleexttag2count|	6040
+newdescexttag2count  |   	6104
+classifer      |         	5694
+entropy     |            	6040
+entropyv2     |          	6040
+
+（2）用算法进行预测填充: ./analyse_data/train_data_no_missing.csv
+
+（3）利用得到的填充结果作为train data进行预测
+特征|	阈值|	precision|	recall|	f1_score
+---|---|---|---|---
+All feature + word embedding|	0.7|	0.487500|	0.754839|	0.592405
+All feature|	0.7|	0.466912|	0.819355|	0.594848|
+no newtag2cout+ word embedding|	0.7|	0.606061|	0.387097|	0.472441
+no newtag2cout|	0.7|	0.592233|	0.393548|	0.472868
+
+
+（4）通过填充缺失值，可以提升5%左右的准确率。
+
+## 六、结论
+1.6个特征对分类器的重要性基本相同，也就是说明并没有出现比较强的特征可以指导分类器进行预测。
+
+2.怀疑train data标记不是大部分正确。
+
+3.在预测值为0.85以上的有较大置信度。
+
+4.通过在train data上填充缺失值，提升5%左右的准确率。
