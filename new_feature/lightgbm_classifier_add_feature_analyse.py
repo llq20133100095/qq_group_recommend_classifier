@@ -254,7 +254,7 @@ if __name__ == "__main__":
 #    file_train = './data_process_simple/train_data.csv'
 #    train_X, train_Y, test_X, test_Y, test_pre_value, data = set_missing_value(file_train, file_train_no_miss)
     
-    '''
+    
     """3.predicte the 400 samples"""
     file_word2vec_save = '../word_embeddings/train_test_word2vec.txt'
 #    file_train = './data_process_simple/train_data.csv'
@@ -388,12 +388,13 @@ if __name__ == "__main__":
     print("1 recall: %f " % (recall[1]))
     con_mat = confusion_matrix(label, predict)
     print(con_mat)
-    '''
     
-    """4.sample the 100 in threshold on test_data"""
-    test_file = './analyse_data/test3/tags.50.filt.removeall.v6.del_sig_key.test_pre.csv'
-    save_file = './analyse_data/test3/tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0_0.1.csv'
-    dataframe_sample = sample_threshold_data(test_file, 100, save_file, 0, 0.1)
+    
+#    """4.sample the 100 in threshold on test_data"""
+#    test_file = './analyse_data/test3/tags.50.filt.removeall.v6.del_sig_key.test_pre.csv'
+#    save_file = './analyse_data/test3/tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0_0.1.csv'
+#    dataframe_sample = sample_threshold_data(test_file, 100, save_file, 0, 0.1)
     
 #    """5.print the roc curve"""
 #    plot_roc_curve()
+    
