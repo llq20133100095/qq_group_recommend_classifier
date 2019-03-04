@@ -6,6 +6,8 @@ Created on Fri Feb 15 15:22:24 2019
 @function: 
     1.analyse the 400 samples in "analyse data"
     2.the data is "tags.50.filt.removeall.v6.del_sig_key.csv"
+    3.set the missing data: "./analyse_data/train_data_no_missing.csv"
+    4.random sampling the threshold on test data
 """
 
 import numpy as np
@@ -13,9 +15,10 @@ import pandas as pd
 from lightgbm_classifier_add_feature import load_pos_dict, load_emb_dict, print_results
 import lightgbm as lgb
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix, roc_curve, auc
 import time
 from svm_classifier import load_pos_dict_one_hot
+import matplotlib.pyplot as plt
 
 def sample_data(file_name, sample_number, save_file):
     """
@@ -48,7 +51,13 @@ def sample_threshold_data(file_name, sample_number, save_file, threshold1, thres
     
     number_list = []
     for i in range(sample_number):
-        number_list.append(np.random.randint(0, len(dataframe_test)-1))
+        while True:
+            seed = np.random.randint(0, len(dataframe_test)-1)
+            if(seed not in number_list):
+                number_list.append(seed)
+                break
+        
+        
     dataframe_sample = dataframe_test.ix[number_list]
     dataframe_sample.to_csv(save_file, index=None, encoding='utf-8-sig')
     return dataframe_test
@@ -96,8 +105,8 @@ def get_data_array(file_name, is_training, data_emb, word_emb, word_pos):
             word_num += 1
             each_row_word_emb = np.concatenate((word_emb['UNK'], word_pos['UNK']), axis=0)
         each_row_word_emb /= word_num
-#        each_row_word_emb = np.concatenate((each_row_word_emb, np.array(each_row[columns])), axis=0)
-        each_row_word_emb = np.array(each_row[columns])
+        each_row_word_emb = np.concatenate((each_row_word_emb, np.array(each_row[columns])), axis=0)
+#        each_row_word_emb = np.array(each_row[columns])
         data_emb.append(each_row_word_emb)
     
     if(is_training):
@@ -192,6 +201,47 @@ def set_missing_value(file_train, file_train_no_miss):
     data.to_csv(file_train_no_miss, encoding='utf-8-sig', index=None)
     return train_X, train_Y, test_X, test_Y, test_pre_value, data
     
+def plot_roc_curve():
+    """
+    Function:
+        1.plot the roc curve
+    """
+    file_all_fea_embedding = './analyse_data/classifier/tags.50.filt.removeall.v6.del_sig_key.sample400.test_pre_all_feature_word_embedding.csv'
+    file_all_fea = './analyse_data/classifier/tags.50.filt.removeall.v6.del_sig_key.sample400.test_pre_All_feature.csv'
+    file_no_newtag2cout_embedding = './analyse_data/classifier/tags.50.filt.removeall.v6.del_sig_key.sample400.test_pre_no_newtag2cout_word_embedding.csv'
+    file_no_newtag2cout = './analyse_data/classifier/tags.50.filt.removeall.v6.del_sig_key.sample400.test_pre_no_newtag2cout.csv'
+    
+    data_all_fea_embedding = pd.read_csv(file_all_fea_embedding, encoding="utf-8")
+    data_all_fea = pd.read_csv(file_all_fea, encoding="utf-8")
+    data_no_newtag2cout_embedding = pd.read_csv(file_no_newtag2cout_embedding, encoding="utf-8")
+    data_no_newtag2cout = pd.read_csv(file_no_newtag2cout, encoding="utf-8")
+
+    label = np.array(data_all_fea_embedding['manual_label'])
+    test_pre_fin0 = np.array(data_all_fea_embedding['predicte'])
+    test_pre_fin1 = np.array(data_all_fea['predicte'])
+    test_pre_fin2 = np.array(data_no_newtag2cout_embedding['predicte'])
+    test_pre_fin3 = np.array(data_no_newtag2cout['predicte'])
+    
+    fpr0, tpr0, thresholds = roc_curve(label, test_pre_fin0)
+    fpr1, tpr1, thresholds = roc_curve(label, test_pre_fin1)
+    fpr2, tpr2, thresholds = roc_curve(label, test_pre_fin2)
+    fpr3, tpr3, thresholds = roc_curve(label, test_pre_fin3)
+    print("All feature + word embedding: %f" % auc(fpr0, tpr0))
+    print("All feature: %f" % auc(fpr1, tpr1))
+    print("no newtag2cout+ word embedding: %f" % auc(fpr2, tpr2))
+    print("no newtag2cout: %f" % auc(fpr3, tpr3))
+    
+    plt.xlabel("FPR")
+    plt.ylabel("TPR")
+    plt.figure(figsize=(8, 8))
+    plt.plot(fpr0, tpr0, label='All feature + word embedding')
+    plt.plot(fpr1, tpr1, label='All feature')
+    plt.plot(fpr2, tpr2, label='no newtag2cout+ word embedding')
+    plt.plot(fpr3, tpr3, label='no newtag2cout')
+    plt.legend()
+    
+    plt.savefig('./analyse_data/classifier/roc.jpg')
+
 if __name__ == "__main__":
 #    """1.sample the 100 test data"""
 #    test_file = './analyse_data/tags.50.filt.removeall.v6.del_sig_key.test_pre.csv'
@@ -204,12 +254,13 @@ if __name__ == "__main__":
 #    file_train = './data_process_simple/train_data.csv'
 #    train_X, train_Y, test_X, test_Y, test_pre_value, data = set_missing_value(file_train, file_train_no_miss)
     
-    
+    '''
     """3.predicte the 400 samples"""
     file_word2vec_save = '../word_embeddings/train_test_word2vec.txt'
 #    file_train = './data_process_simple/train_data.csv'
     file_train = './analyse_data/train_data_no_missing.csv'
     file_test = './analyse_data/tags.50.filt.removeall.v6.del_sig_key.sample400.csv'
+#    file_test = './data_process_test/tags.50.filt.removeall.v6.del_sig_key.test.csv'
     file_pos = '../data/POS.txt'
     word_emb = {}
     word_pos = {}
@@ -323,7 +374,7 @@ if __name__ == "__main__":
     test_data.to_csv(file_pre, encoding='utf-8-sig', index=None)
     
     label = list(test_data['manual_label'])
-    predict = np.where(test_pre_fin > 0.7, 1, 0)
+    predict = np.where(test_pre_fin > 0.5, 1, 0)
     
     precision = precision_score(label, predict, average=None)
     recall = recall_score(label, predict, average=None)
@@ -337,10 +388,12 @@ if __name__ == "__main__":
     print("1 recall: %f " % (recall[1]))
     con_mat = confusion_matrix(label, predict)
     print(con_mat)
-    
+    '''
     
     """4.sample the 100 in threshold on test_data"""
-#    test_file = './analyse_data/tags.50.filt.removeall.v6.del_sig_key.test_pre.csv'
-#    save_file = './analyse_data/threshold_sample/tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0.8_0.85.csv'
-#    dataframe_sample = sample_threshold_data(test_file, 100, save_file, 0.8, 0.85)
+    test_file = './analyse_data/test3/tags.50.filt.removeall.v6.del_sig_key.test_pre.csv'
+    save_file = './analyse_data/test3/tags.50.filt.removeall.v6.del_sig_key.test_pre.100_0_0.1.csv'
+    dataframe_sample = sample_threshold_data(test_file, 100, save_file, 0, 0.1)
     
+#    """5.print the roc curve"""
+#    plot_roc_curve()
